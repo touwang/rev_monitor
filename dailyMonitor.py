@@ -216,10 +216,11 @@ def getdailychange():
     print(output)
     return output
 
-# process_accountinfo()
-# process_mxcInfo()
-# process_mxctransaction()
-# process_top100()
+
+process_accountinfo()
+process_mxcInfo()
+process_mxctransaction()
+process_top100()
 
 cnx.commit()
 
