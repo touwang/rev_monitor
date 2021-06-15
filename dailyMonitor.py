@@ -17,6 +17,19 @@ config = {
   'raise_on_warnings': True
 }
 
+
+wx_pusher_config = {
+  "appToken":"",
+  "content":"",
+  "summary":"Rev日常监控",
+  "contentType":3,
+  # "topicIds":[
+  # ],
+  "uids":[
+      ""
+  ],
+}
+
 today = date.today()
 cnx = mysql.connector.connect(**config)
 cursor = cnx.cursor(buffered=True)
@@ -112,7 +125,12 @@ def process_top100():
     return
 
 
+def maskaccount(account):
+    return account[4:9] + "****" + account[-5:]
+
+
 def getdailychange():
+    output = ""
     yesterday = today - timedelta(days=1)
     mxc_address = "1111fTFCBE727Ex5AHDhAD38HyNca66U5vKVCoQDLwauVCY9DDbBX"
     # get total accounts changes
@@ -127,21 +145,23 @@ def getdailychange():
                "top50": top50, "top100": top100}
         data.append(row)
     total_account_changes = """
-Total Accounts Changes: {}
-1 Day Active Accounts: {}
-1 Week Active Accounts: {}
-1 Month Active Accounts: {}
-Top 10: {}
-Top 50: {}
-Top 100: {}
-    """
-    print(total_account_changes.format((data[0]["total_accounts"] - data[1]["total_accounts"]),
+####持仓变化
+* 账户总数: {:+.0f}
+* 一天活跃账户: {:+.0f}
+* 周活跃账户: {:+.0f}
+* 月活跃账户: {:+.0f}
+* 前10持仓: {:+.0f}
+* 前50持仓: {:+.0f}
+* 前100持仓: {:+.0f}
+    """.format((data[0]["total_accounts"] - data[1]["total_accounts"]),
                                        (data[0]["d_active_account"] - data[1]["d_active_account"]),
                                        (data[0]["w_active_account"] - data[1]["w_active_account"]),
                                        (data[0]["m_active_account"] - data[1]["m_active_account"]),
                                        (data[0]["top10"] - data[1]["top10"]),
                                        (data[0]["top50"] - data[1]["top50"]),
-                                       (data[0]["top100"] - data[1]["top100"])))
+                                       (data[0]["top100"] - data[1]["top100"]))
+    # print(total_account_changes)
+    output += total_account_changes + "  \n"
     # get daily top accounts changes
     before = today - timedelta(days=2)
     topaccount_query = ("SELECT date, account, balance FROM daily_top_accounts "
@@ -156,15 +176,18 @@ Top 100: {}
         top_accounts[date.strftime('%Y-%m-%d')][account] = balance
     # print(repr(top_accounts))
     yesterdaystr = str(yesterday)
-    top100_changes = "Top 100 Accounts:\n"
+    top100_changes = "####前100持仓变化:\n"
     for account, balance in top_accounts[str(today)].items():
         if account in top_accounts[yesterdaystr] and (balance - top_accounts[yesterdaystr][account] != 0):
-            top100_changes += account + ":" + str(balance - top_accounts[yesterdaystr][account]) + "\n"
+            top100_changes += "* " + maskaccount(account) + ":" + str(int(balance - top_accounts[yesterdaystr][account])) + "\n"
         elif not account in top_accounts[yesterdaystr]:
-            top100_changes += account + ":" + str(balance) + "(new)\n"
+            top100_changes += "* " + maskaccount(account) + ":" + str(int(balance)) + "(new)\n"
 
-    print(top100_changes)
+    # print(top100_changes)
+    output += top100_changes + "\n"
     # get MXC(1111fTFCBE727Ex5AHDhAD38HyNca66U5vKVCoQDLwauVCY9DDbBX) changes
+    # print("#抹茶交易所")
+    output += "####抹茶交易所" + "\n"
     mxcinfo_query = (
         "SELECT balance FROM daily_account_monitor where address=%s "
         "order by date desc limit 2")
@@ -172,30 +195,37 @@ Top 100: {}
     data = []
     for (balance,) in cursor:
         data.append(balance)
-    mxc_changes = "MXC balance Change:" + str(int(data[0] - data[1]))
-    print(mxc_changes)
-
-    # get MXC(1111fTFCBE727Ex5AHDhAD38HyNca66U5vKVCoQDLwauVCY9DDbBX) transactions
+    mxc_changes = "* 持仓变化:" + str(int(data[0] - data[1]))
+    # print(mxc_changes)
+    output += mxc_changes + "\n"
     yesterday_datetime = datetime.combine(yesterday, datetime.min.time())
     mxctransaction_query = (
         "select count(*), sum(amount) from daily_account_transactions where fromAddr=%s and timestamp > %s")
     cursor.execute(mxctransaction_query, (mxc_address, yesterday_datetime))
     for (count, amount) in cursor:
-        print("total out transactions: " + str(count) + ", sum: " + str(int(amount)))
+        outgoing = "* 转出统计: " + str(count) + "笔, 总量: " + str(int(amount))
+        # print(outgoing)
+        output += outgoing + "\n"
     mxctransaction_query = (
         "select count(*), sum(amount) from daily_account_transactions where toAddr=%s and timestamp > %s")
     cursor.execute(mxctransaction_query, (mxc_address, yesterday_datetime))
     for (count, amount) in cursor:
-        print("total in transactions: " + str(count) + ", sum: " + str(int(amount)))
+        incoming = "* 转入统计: " + str(count) + "笔, 总量: " + str(int(amount))
+        # print(incoming)
+        output += incoming + "\n"
+    print(output)
+    return output
 
-process_accountinfo()
-process_mxcInfo()
-process_mxctransaction()
-process_top100()
+# process_accountinfo()
+# process_mxcInfo()
+# process_mxctransaction()
+# process_top100()
 
 cnx.commit()
 
-getdailychange()
+wx_pusher_config["content"] = getdailychange()
 
 cursor.close()
 cnx.close()
+
+requests.post("http://wxpusher.zjiecode.com/api/send/message", None, wx_pusher_config)
