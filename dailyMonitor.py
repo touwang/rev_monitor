@@ -154,12 +154,12 @@ def getdailychange():
 * 前50持仓: {:+.0f}
 * 前100持仓: {:+.0f}
     """.format((data[0]["total_accounts"] - data[1]["total_accounts"]),
-                                       (data[0]["d_active_account"] - data[1]["d_active_account"]),
-                                       (data[0]["w_active_account"] - data[1]["w_active_account"]),
-                                       (data[0]["m_active_account"] - data[1]["m_active_account"]),
-                                       (data[0]["top10"] - data[1]["top10"]),
-                                       (data[0]["top50"] - data[1]["top50"]),
-                                       (data[0]["top100"] - data[1]["top100"]))
+               (data[0]["d_active_account"] - data[1]["d_active_account"]),
+               (data[0]["w_active_account"] - data[1]["w_active_account"]),
+               (data[0]["m_active_account"] - data[1]["m_active_account"]),
+               (data[0]["top10"] - data[1]["top10"]),
+               (data[0]["top50"] - data[1]["top50"]),
+               (data[0]["top100"] - data[1]["top100"]))
     # print(total_account_changes)
     output += total_account_changes + "  \n"
     # get daily top accounts changes
@@ -179,9 +179,9 @@ def getdailychange():
     top100_changes = "####前100持仓变化:\n"
     for account, balance in top_accounts[str(today)].items():
         if account in top_accounts[yesterdaystr] and (balance - top_accounts[yesterdaystr][account] != 0):
-            top100_changes += "* " + maskaccount(account) + ":" + str(int(balance - top_accounts[yesterdaystr][account])) + "\n"
+            top100_changes += "* " + maskaccount(account) + ":{:+.0f}".format(int(balance - top_accounts[yesterdaystr][account])) + "\n"
         elif not account in top_accounts[yesterdaystr]:
-            top100_changes += "* " + maskaccount(account) + ":" + str(int(balance)) + "(new)\n"
+            top100_changes += "* " + maskaccount(account) + ":{:+.0f}".format(int(balance)) + "(new)\n"
 
     # print(top100_changes)
     output += top100_changes + "\n"
@@ -195,7 +195,7 @@ def getdailychange():
     data = []
     for (balance,) in cursor:
         data.append(balance)
-    mxc_changes = "* 持仓变化:" + str(int(data[0] - data[1]))
+    mxc_changes = "* 持仓变化:{:+.0f}".format(int(data[0] - data[1]))
     # print(mxc_changes)
     output += mxc_changes + "\n"
     yesterday_datetime = datetime.combine(yesterday, datetime.min.time())
