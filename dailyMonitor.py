@@ -97,7 +97,7 @@ def process_mxctransaction():
                 # print(repr(transaction))
                 if transaction["transactionType"] == 'transfer' and transaction_date > last_transaction_datetime:
                     transaction_info = (transaction["blockNumber"], transaction["fromAddr"], transaction["toAddr"],
-                                        transaction["amount"] / 10000000, transaction_date)
+                                        transaction["amount"] / 100000000, transaction_date)
                     cursor.execute(save_data, transaction_info)
                     transaction_count += 1
                 elif transaction["transactionType"] == 'transfer' and transaction_date <= last_transaction_datetime:
