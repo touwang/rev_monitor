@@ -198,7 +198,7 @@ def getdailychange():
     mxc_changes = "* 持仓变化:{:+.0f}".format(int(data[0] - data[1]))
     # print(mxc_changes)
     output += mxc_changes + "\n"
-    yesterday_datetime = datetime.combine(yesterday, datetime.min.time())
+    yesterday_datetime = datetime.today() - timedelta(days=1)
     mxctransaction_query = (
         "select count(*), sum(amount) from daily_account_transactions where fromAddr=%s and timestamp > %s")
     cursor.execute(mxctransaction_query, (mxc_address, yesterday_datetime))
