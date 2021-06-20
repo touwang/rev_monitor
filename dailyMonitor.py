@@ -17,7 +17,6 @@ config = {
   'raise_on_warnings': True
 }
 
-
 wx_pusher_config = {
   "appToken":"",
   "content":"",
@@ -201,8 +200,10 @@ def getdailychange():
     yesterday_datetime = datetime.today() - timedelta(days=1)
     mxctransaction_query = (
         "select count(*), sum(amount) from daily_account_transactions where fromAddr=%s and timestamp > %s")
-    cursor.execute(mxctransaction_query, (mxc_address, yesterday_datetime))
+    cursor.execute(mxctransaction_query, (mxc_address, yesterday_datetime.strftime('%Y-%m-%d %H:%M:%S')))
     for (count, amount) in cursor:
+        if amount == None:
+            amount = 0
         outgoing = "* 转出统计: " + str(count) + "笔, 总量: " + str(int(amount))
         # print(outgoing)
         output += outgoing + "\n"
@@ -210,6 +211,8 @@ def getdailychange():
         "select count(*), sum(amount) from daily_account_transactions where toAddr=%s and timestamp > %s")
     cursor.execute(mxctransaction_query, (mxc_address, yesterday_datetime))
     for (count, amount) in cursor:
+        if amount == None:
+            amount = 0
         incoming = "* 转入统计: " + str(count) + "笔, 总量: " + str(int(amount))
         # print(incoming)
         output += incoming + "\n"
