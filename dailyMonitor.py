@@ -124,6 +124,59 @@ def process_top100():
     return
 
 
+def save_top100_transactions():
+    yesterday = today - timedelta(days=1)
+    last_transaction_datetime = datetime.combine(yesterday, datetime.min.time())
+    query = "SELECT timestamp FROM daily_account_transactions order by timestamp desc limit 1"
+    cursor.execute(query)
+    if cursor.rowcount == 1:
+        for (transaction_datetime,) in cursor:
+            last_transaction_datetime = transaction_datetime
+
+    resp = requests.get('https://revdefine.io/define/api/revaccounts?rowsPerPage=100&page=1')
+    accounts = resp.json()['accounts']
+
+    for account in accounts:
+        save_transactions(account["address"], last_transaction_datetime)
+    return
+
+
+def save_transactions(address, last_transaction_datetime):
+    page = 0
+    transaction_count = 0
+    next_page = True
+    while next_page:
+        page += 1
+        resp = requests.get(
+            'https://revdefine.io/define/api/transactions/' + address + '?rowsPerPage=100&page=' + str(page))
+        # print('https://revdefine.io/define/api/transactions/' + address + '?rowsPerPage=100&page=' + str(page))
+        transactions = resp.json()['transactions']
+        page_info = resp.json()['pageInfo']
+        # print(repr(transactions))
+        save_data = ("INSERT INTO daily_account_transactions "
+                     "(blockNumber, fromAddr, toAddr, amount, timestamp) "
+                     "VALUES (%s, %s, %s, %s, %s)")
+        for transaction in transactions:
+            transaction_date = datetime.utcfromtimestamp(int(transaction["timestamp"] / 1000.0))
+            # print(repr(transaction))
+            if transaction["transactionType"] == 'transfer' and transaction_date > last_transaction_datetime:
+                transaction_info = (transaction["blockNumber"], transaction["fromAddr"], transaction["toAddr"],
+                                    transaction["amount"] / 100000000, transaction_date)
+                try:
+                    cursor.execute(save_data, transaction_info)
+                except mysql.connector.Error as err:
+                    print("Failed to save Transaction Info: {} for address: {}".format(err, address))
+                transaction_count += 1
+            elif transaction["transactionType"] == 'transfer' and transaction_date <= last_transaction_datetime:
+                next_page = False
+                break
+            elif page_info["currentPage"] == page_info["totalPage"]:
+                next_page = False
+
+        print("Save Transaction info for (" + address + "):" + str(transaction_count))
+    return
+
+
 def maskaccount(account):
     return account[4:9] + "****" + account[-5:]
 
@@ -221,9 +274,10 @@ def getdailychange():
 
 
 process_accountinfo()
-process_mxcInfo()
-process_mxctransaction()
+# process_mxctransaction()
 process_top100()
+process_mxcInfo()
+save_top100_transactions()
 
 cnx.commit()
 
