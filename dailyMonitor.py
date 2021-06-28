@@ -17,6 +17,7 @@ config = {
   'raise_on_warnings': True
 }
 
+
 wx_pusher_config = {
   "appToken":"",
   "content":"",
@@ -28,6 +29,7 @@ wx_pusher_config = {
       ""
   ],
 }
+
 
 today = date.today()
 cnx = mysql.connector.connect(**config)
@@ -185,6 +187,15 @@ def getdailychange():
     output = ""
     yesterday = today - timedelta(days=1)
     mxc_address = "1111fTFCBE727Ex5AHDhAD38HyNca66U5vKVCoQDLwauVCY9DDbBX"
+
+    mxcinfo_query = (
+        "SELECT balance FROM daily_account_monitor where address=%s "
+        "order by date desc limit 2")
+    cursor.execute(mxcinfo_query, (mxc_address,))
+    mxc_data = []
+    for (balance,) in cursor:
+        mxc_data.append(balance)
+    mxc_change = int(mxc_data[0] - mxc_data[1])
     # get total accounts changes
     accountinfo_query = (
         "SELECT total_accounts, 1d_active_account, 1w_active_account, 1m_active_account, top10, top50, top100 FROM account_overview "
@@ -197,7 +208,7 @@ def getdailychange():
                "top50": top50, "top100": top100}
         data.append(row)
     total_account_changes = """
-####持仓变化
+####持仓变化(不包含抹茶账户)
 * 账户总数: {:+.0f}
 * 一天活跃账户: {:+.0f}
 * 周活跃账户: {:+.0f}
@@ -209,11 +220,13 @@ def getdailychange():
                (data[0]["d_active_account"] - data[1]["d_active_account"]),
                (data[0]["w_active_account"] - data[1]["w_active_account"]),
                (data[0]["m_active_account"] - data[1]["m_active_account"]),
-               (data[0]["top10"] - data[1]["top10"]),
-               (data[0]["top50"] - data[1]["top50"]),
-               (data[0]["top100"] - data[1]["top100"]))
+               (data[0]["top10"] - data[1]["top10"] - mxc_change),
+               (data[0]["top50"] - data[1]["top50"] - mxc_change),
+               (data[0]["top100"] - data[1]["top100"]) - mxc_change)
     # print(total_account_changes)
     output += total_account_changes + "  \n"
+
+
     # get daily top accounts changes
     before = today - timedelta(days=2)
     topaccount_query = ("SELECT date, account, balance FROM daily_top_accounts "
@@ -237,17 +250,12 @@ def getdailychange():
 
     # print(top100_changes)
     output += top100_changes + "\n"
+
+
     # get MXC(1111fTFCBE727Ex5AHDhAD38HyNca66U5vKVCoQDLwauVCY9DDbBX) changes
     # print("#抹茶交易所")
     output += "####抹茶交易所" + "\n"
-    mxcinfo_query = (
-        "SELECT balance FROM daily_account_monitor where address=%s "
-        "order by date desc limit 2")
-    cursor.execute(mxcinfo_query, (mxc_address,))
-    data = []
-    for (balance,) in cursor:
-        data.append(balance)
-    mxc_changes = "* 持仓变化:{:+.0f}".format(int(data[0] - data[1]))
+    mxc_changes = "* 持仓变化:{:+.0f}".format(int(mxc_data[0] - mxc_data[1]))
     # print(mxc_changes)
     output += mxc_changes + "\n"
     yesterday_datetime = datetime.today() - timedelta(days=1)
