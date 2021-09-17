@@ -57,7 +57,7 @@ def process_accountinfo():
 def process_mxcInfo():
     resp = requests.get(
         'https://revdefine.io/define/api/revaccount/1111fTFCBE727Ex5AHDhAD38HyNca66U5vKVCoQDLwauVCY9DDbBX')
-    data = resp.json()['account']
+    data = resp.json()
     save_data = ("INSERT INTO daily_account_monitor "
                  "(address, date, balance) "
                  "VALUES (%s, %s, %s)")
